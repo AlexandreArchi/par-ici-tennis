@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Par-Ici Tennis 🎾</title>
+  <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/modules/libsodium-wrappers.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #2e7d32;
+      --green-light: #4caf50;
+      --green-pale: #e8f5e9;
+      --green-dark: #1b5e20;
+      --red: #c62828;
+      --red-pale: #ffebee;
+      --orange: #e65100;
+      --orange-pale: #fff3e0;
+      --gray: #607d8b;
+      --gray-light: #eceff1;
+      --white: #ffffff;
+      --text: #212121;
+      --text-muted: #757575;
+      --border: #cfd8dc;
+      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f1f8e9;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--green-dark);
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header span { font-size: 1.6rem; }
+    header .subtitle { font-size: 0.8rem; opacity: 0.8; margin-top: 2px; }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+
+    /* CARD */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .card-header {
+      background: var(--green-pale);
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-header h2 { font-size: 1rem; font-weight: 600; color: var(--green-dark); }
+    .card-header .icon { font-size: 1.2rem; }
+    .card-body { padding: 20px; }
+
+    /* TABS */
+    .tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 0; }
+    .tab-btn {
+      padding: 12px 20px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--green); }
+    .tab-btn.active { color: var(--green-dark); border-bottom-color: var(--green); font-weight: 600; }
+    .tab-content { display: none; padding: 24px; }
+    .tab-content.active { display: block; }
+
+    /* FORMS */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    input[type="text"], input[type="email"], input[type="password"], input[type="number"], select {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 0.95rem; transition: border-color 0.2s;
+      background: white;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--green-light); }
+    .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
+    /* CHECKBOXES */
+    .check-group { display: flex; flex-wrap: wrap; gap: 10px; }
+    .check-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border: 1.5px solid var(--border);
+      border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+      transition: all 0.2s; user-select: none;
+    }
+    .check-item input { display: none; }
+    .check-item:has(input:checked) { background: var(--green-pale); border-color: var(--green-light); color: var(--green-dark); font-weight: 600; }
+
+    /* LIST ITEMS (locations, hours, players) */
+    .list-input-area { border: 1.5px solid var(--border); border-radius: 8px; padding: 10px; min-height: 50px; }
+    .list-items { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .list-item {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--gray-light); border-radius: 6px; padding: 6px 10px;
+    }
+    .list-item .handle { cursor: grab; color: var(--text-muted); font-size: 1.1rem; }
+    .list-item .badge {
+      background: var(--green-dark); color: white;
+      border-radius: 50%; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
+    }
+    .list-item .item-text { flex: 1; font-size: 0.9rem; }
+    .list-item .remove-btn {
+      background: none; border: none; cursor: pointer; color: var(--text-muted);
+      font-size: 1rem; padding: 2px; line-height: 1;
+    }
+    .list-item .remove-btn:hover { color: var(--red); }
+    .add-row { display: flex; gap: 8px; }
+    .add-row input { flex: 1; }
+
+    /* PLAYERS */
+    .player-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .player-row input { flex: 1; }
+    .player-num { font-size: 0.8rem; color: var(--text-muted); width: 24px; text-align: center; flex-shrink: 0; }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border: none; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; text-decoration: none;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--green); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+    .btn-secondary { background: var(--gray-light); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: var(--border); }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-danger:hover:not(:disabled) { background: #b71c1c; }
+    .btn-orange { background: var(--orange); color: white; }
+    .btn-orange:hover:not(:disabled) { background: #bf360c; }
+    .btn-sm { padding: 7px 14px; font-size: 0.82rem; }
+    .btn-full { width: 100%; justify-content: center; }
+    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* TOGGLE */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--gray-light); }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-info h3 { font-size: 0.95rem; font-weight: 600; }
+    .toggle-info p { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+    .toggle-switch { position: relative; width: 48px; height: 26px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: var(--border);
+      border-radius: 26px; cursor: pointer; transition: 0.3s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; height: 20px; width: 20px;
+      left: 3px; bottom: 3px; background: white;
+      border-radius: 50%; transition: 0.3s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--green-light); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+    /* STATUS BADGES */
+    .badge-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+    }
+    .badge-success { background: var(--green-pale); color: var(--green-dark); }
+    .badge-failure { background: var(--red-pale); color: var(--red); }
+    .badge-running { background: #e3f2fd; color: #1565c0; }
+    .badge-pending { background: var(--orange-pale); color: var(--orange); }
+    .badge-info { background: var(--gray-light); color: var(--gray); }
+
+    /* RUNS LIST */
+    .run-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--gray-light); gap: 12px;
+    }
+    .run-item:last-child { border-bottom: none; }
+    .run-info h4 { font-size: 0.9rem; font-weight: 600; }
+    .run-info p { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+    .run-link { font-size: 0.82rem; color: var(--green); text-decoration: none; white-space: nowrap; }
+    .run-link:hover { text-decoration: underline; }
+
+    /* ALERTS */
+    .alert {
+      padding: 12px 16px; border-radius: 8px; font-size: 0.88rem;
+      display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px;
+    }
+    .alert-success { background: var(--green-pale); color: var(--green-dark); border: 1px solid #a5d6a7; }
+    .alert-error { background: var(--red-pale); color: var(--red); border: 1px solid #ef9a9a; }
+    .alert-info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+    .alert-warning { background: var(--orange-pale); color: var(--orange); border: 1px solid #ffcc80; }
+    .alert .icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+    /* LOGIN */
+    .login-card { max-width: 480px; margin: 60px auto; }
+    .login-card .card-body { padding: 32px; }
+    .login-logo { text-align: center; font-size: 3rem; margin-bottom: 8px; }
+    .login-title { text-align: center; font-size: 1.3rem; font-weight: 700; color: var(--green-dark); margin-bottom: 4px; }
+    .login-sub { text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
+
+    /* SECTION DIVIDER */
+    .section-title {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-muted); margin-bottom: 14px;
+      padding-bottom: 6px; border-bottom: 1px solid var(--gray-light);
+    }
+
+    /* SPINNER */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #323232; color: white;
+      padding: 12px 20px; border-radius: 8px;
+      font-size: 0.88rem; max-width: 320px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.3s; z-index: 1000;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { background: var(--green-dark); }
+    #toast.error { background: var(--red); }
+
+    .connected-as { font-size: 0.82rem; color: rgba(255,255,255,0.75); margin-left: auto; }
+    .connected-as strong { color: white; }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-green { background: #69f0ae; }
+    .dot-red { background: #ff5252; }
+    .dot-gray { background: #bdbdbd; }
+
+    #main-app { display: none; }
+    #login-screen { display: block; }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+    .collapsible-section { margin-bottom: 0; }
+    .collapsible-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; cursor: pointer; user-select: none;
+      border-bottom: 1px solid var(--gray-light);
+    }
+    .collapsible-header h3 { font-size: 0.9rem; font-weight: 600; }
+    .collapsible-arrow { transition: transform 0.2s; font-size: 0.7rem; color: var(--text-muted); }
+    .collapsible-arrow.open { transform: rotate(180deg); }
+    .collapsible-body { padding-top: 14px; display: none; }
+    .collapsible-body.open { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="container">
+    <div class="card login-card">
+      <div class="card-body">
+        <div class="login-logo">🎾</div>
+        <div class="login-title">Par-Ici Tennis</div>
+        <div class="login-sub">Réservation automatique de terrains à Paris</div>
+
+        <div id="login-alert" style="display:none"></div>
+
+        <div class="form-group">
+          <label>GitHub Personal Access Token</label>
+          <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+          <div class="hint">Token avec les scopes <strong>repo</strong> et <strong>workflow</strong>. <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=par-ici-tennis" target="_blank" style="color:var(--green)">Créer un token →</a></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Propriétaire du repo</label>
+            <input type="text" id="owner-input" placeholder="votre-username-github">
+          </div>
+          <div class="form-group">
+            <label>Nom du repo</label>
+            <input type="text" id="repo-input" placeholder="par-ici-tennis" value="par-ici-tennis">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">
+          <span>Se connecter</span>
+        </button>
+        <div style="margin-top:16px" class="alert alert-info">
+          <span class="icon">ℹ️</span>
+          <div>Tu dois d'abord <strong>forker</strong> <a href="https://github.com/bertrandda/par-ici-tennis/fork" target="_blank" style="color:inherit;font-weight:700">ce repo</a> sur ton compte GitHub avant de continuer.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app">
+  <header>
+    <span>🎾</span>
+    <div>
+      <h1>Par-Ici Tennis</h1>
+      <div class="subtitle">Réservation automatique · tennis.paris.fr</div>
+    </div>
+    <div class="connected-as" id="header-user"></div>
+    <button class="btn btn-secondary btn-sm" onclick="logout()" style="margin-left:8px">Déconnexion</button>
+  </header>
+
+  <div class="container">
+
+    <!-- STATUS BAR -->
+    <div id="status-bar" style="margin-bottom:16px"></div>
+
+    <div class="card">
+      <div class="tabs" id="main-tabs">
+        <button class="tab-btn active" onclick="switchTab('config')">⚙️ Configuration</button>
+        <button class="tab-btn" onclick="switchTab('booking')">🎾 Réservation</button>
+        <button class="tab-btn" onclick="switchTab('history')">📋 Historique</button>
+      </div>
+
+      <!-- ===== CONFIG TAB ===== -->
+      <div class="tab-content active" id="tab-config">
+
+        <div class="alert alert-warning" id="config-warning" style="display:none">
+          <span class="icon">⚠️</span>
+          <span id="config-warning-text"></span>
+        </div>
+
+        <div class="section-title">Compte tennis.paris.fr</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="cfg-email" placeholder="ton@email.com">
+            <div class="hint">Stocké comme secret GitHub chiffré</div>
+          </div>
+          <div class="form-group">
+            <label>Mot de passe</label>
+            <input type="password" id="cfg-password" placeholder="••••••••">
+            <div class="hint">Stocké comme secret GitHub chiffré</div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:8px">Terrains (par ordre de préférence)</div>
+        <div class="form-group">
+          <div class="list-input-area">
+            <div class="list-items" id="locations-list"></div>
+            <div class="add-row">
+              <input type="text" id="location-add-input" placeholder="Ex: Valeyre, Suzanne Lenglen…" list="locations-suggestions">
+              <datalist id="locations-suggestions">
+                <option value="Valeyre"><option value="Suzanne Lenglen"><option value="Poliveau">
+                <option value="Ranelagh"><option value="Éole"><option value="Buttes-Chaumont">
+                <option value="Henry de Montherlant"><option value="Montparnasse"><option value="Marville">
+                <option value="Château de Vincennes"><option value="Balard"><option value="Bitche">
+                <option value="Noisy-le-Grand"><option value="Choisy"><option value="Bercy">
+              </datalist>
+              <button class="btn btn-secondary btn-sm" onclick="addLocation()">+ Ajouter</button>
+            </div>
+          </div>
+          <div class="hint">Voir la <a href="https://tennis.paris.fr/tennis/jsp/site/Portal.jsp?page=tennisParisien&view=les_tennis_parisiens" target="_blank" style="color:var(--green)">liste complète des terrains →</a></div>
+        </div>
+
+        <div class="section-title">Heures préférées (par ordre de priorité)</div>
+        <div class="form-group">
+          <div class="list-input-area">
+            <div class="list-items" id="hours-list"></div>
+            <div class="add-row">
+              <select id="hour-add-select">
+                <option value="">-- Choisir une heure --</option>
+                <option value="7">7h00</option><option value="8">8h00</option>
+                <option value="9">9h00</option><option value="10">10h00</option>
+                <option value="11">11h00</option><option value="12">12h00</option>
+                <option value="13">13h00</option><option value="14">14h00</option>
+                <option value="15">15h00</option><option value="16">16h00</option>
+                <option value="17">17h00</option><option value="18">18h00</option>
+                <option value="19">19h00</option><option value="20">20h00</option>
+                <option value="21">21h00</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="addHour()">+ Ajouter</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Type de tarif</label>
+            <div class="check-group">
+              <label class="check-item"><input type="checkbox" id="chk-plein" value="Tarif plein" onchange="syncCheckboxes()"> Tarif plein</label>
+              <label class="check-item"><input type="checkbox" id="chk-reduit" value="Tarif réduit" onchange="syncCheckboxes()"> Tarif réduit</label>
+            </div>
+            <div class="hint">Doit correspondre à ton carnet de réservation</div>
+          </div>
+          <div class="form-group">
+            <label>Type de terrain</label>
+            <div class="check-group">
+              <label class="check-item"><input type="checkbox" id="chk-decouvert" value="Découvert" onchange="syncCheckboxes()"> Découvert ☀️</label>
+              <label class="check-item"><input type="checkbox" id="chk-couvert" value="Couvert" onchange="syncCheckboxes()"> Couvert 🏟️</label>
+            </div>
+            <div class="hint">Doit correspondre à ton carnet de réservation</div>
+          </div>
+        </div>
+
+        <div class="section-title">Joueurs additionnels <span style="font-weight:400;text-transform:none">(max 3, sans toi)</span></div>
+        <div id="players-area">
+          <div class="player-row">
+            <span class="player-num">1.</span>
+            <input type="text" class="player-lastname" placeholder="Nom">
+            <input type="text" class="player-firstname" placeholder="Prénom">
+            <button class="btn btn-secondary btn-sm" onclick="removePlayer(this)">✕</button>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="add-player-btn" onclick="addPlayer()" style="margin-top:4px">+ Ajouter un joueur</button>
+
+        <!-- OPTIONAL NTFY -->
+        <div style="margin-top:20px">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <h3>🔔 Notifications ntfy (optionnel)</h3>
+            <span class="collapsible-arrow">▼</span>
+          </div>
+          <div class="collapsible-body">
+            <div class="form-row" style="margin-top:14px">
+              <div class="form-group">
+                <label>Topic ntfy</label>
+                <input type="text" id="cfg-ntfy-topic" placeholder="mon-topic-unique-tennis">
+                <div class="hint">Choisir un nom unique. <a href="https://ntfy.sh" target="_blank" style="color:var(--green)">ntfy.sh →</a></div>
+              </div>
+              <div class="form-group">
+                <label>Domaine ntfy (optionnel)</label>
+                <input type="text" id="cfg-ntfy-domain" placeholder="ntfy.sh">
+                <div class="hint">Laisser vide pour utiliser ntfy.sh</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:24px; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid var(--gray-light); padding-top:20px">
+          <button class="btn btn-secondary" onclick="loadConfig()">↺ Recharger depuis GitHub</button>
+          <button class="btn btn-primary" id="save-btn" onclick="saveConfig()">
+            <span>💾 Sauvegarder</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ===== BOOKING TAB ===== -->
+      <div class="tab-content" id="tab-booking">
+
+        <div id="booking-alert" style="margin-bottom:16px"></div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h3>Réservation automatique à 8h</h3>
+            <p>Active le workflow GitHub Actions pour réserver automatiquement le lendemain à 8h00 (Paris). Se désactive automatiquement après exécution.</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="schedule-toggle" onchange="toggleSchedule(this)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div style="margin-top:24px">
+          <div class="section-title">Lancer manuellement</div>
+          <div class="alert alert-info" style="margin-bottom:16px">
+            <span class="icon">ℹ️</span>
+            <span>Une réservation sera tentée pour dans <strong>6 jours</strong> (ou la date dans ta config). Assure-toi que ta configuration est sauvegardée.</span>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="book-btn" onclick="triggerBooking(false)">
+              🎾 Réserver maintenant
+            </button>
+            <button class="btn btn-secondary" id="dry-btn" onclick="triggerBooking(true)">
+              🧪 Test (dry-run)
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-top:24px">
+          <div class="section-title">Statut du workflow</div>
+          <div id="workflow-status">
+            <div class="empty-state"><div class="icon">⏳</div>Chargement…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== HISTORY TAB ===== -->
+      <div class="tab-content" id="tab-history">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+          <div class="section-title" style="margin-bottom:0">Dernières exécutions</div>
+          <button class="btn btn-secondary btn-sm" onclick="loadHistory()">↺ Actualiser</button>
+        </div>
+        <div id="history-list">
+          <div class="empty-state"><div class="icon">📋</div>Chargement…</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let PAT = '', OWNER = '', REPO = '';
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  PAT = localStorage.getItem('tennis_pat') || '';
+  OWNER = localStorage.getItem('tennis_owner') || '';
+  REPO = localStorage.getItem('tennis_repo') || 'par-ici-tennis';
+
+  if (PAT && OWNER && REPO) {
+    showApp();
+  }
+
+  document.getElementById('pat-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+});
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+async function doLogin() {
+  const pat = document.getElementById('pat-input').value.trim();
+  const owner = document.getElementById('owner-input').value.trim();
+  const repo = document.getElementById('repo-input').value.trim();
+  const alertEl = document.getElementById('login-alert');
+  const btn = document.getElementById('login-btn');
+
+  if (!pat || !owner || !repo) {
+    alertEl.innerHTML = '<div class="alert alert-error"><span class="icon">❌</span>Tous les champs sont obligatoires.</div>';
+    alertEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Connexion…';
+  alertEl.style.display = 'none';
+
+  try {
+    const r = await ghFetch(`/repos/${owner}/${repo}`, pat);
+    if (!r.ok) throw new Error(r.status === 404 ? 'Repo introuvable. Vérifie le nom et le fork.' : 'Token invalide ou accès refusé.');
+    PAT = pat; OWNER = owner; REPO = repo;
+    localStorage.setItem('tennis_pat', PAT);
+    localStorage.setItem('tennis_owner', OWNER);
+    localStorage.setItem('tennis_repo', REPO);
+    showApp();
+  } catch(e) {
+    alertEl.innerHTML = `<div class="alert alert-error"><span class="icon">❌</span>${e.message}</div>`;
+    alertEl.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<span>Se connecter</span>';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('tennis_pat');
+  localStorage.removeItem('tennis_owner');
+  localStorage.removeItem('tennis_repo');
+  PAT = OWNER = REPO = '';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'block';
+  document.getElementById('pat-input').value = '';
+}
+
+async function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('header-user').innerHTML = `<span class="dot dot-green"></span> &nbsp;<strong>${OWNER}/${REPO}</strong>`;
+  await Promise.all([loadConfig(), loadWorkflowStatus(), loadHistory()]);
+}
+
+// ═══════════════════════════════════════════
+// GITHUB API HELPERS
+// ═══════════════════════════════════════════
+async function ghFetch(path, token, opts = {}) {
+  return fetch(`https://api.github.com${path}`, {
+    ...opts,
+    headers: {
+      'Authorization': `Bearer ${token || PAT}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+      ...(opts.headers || {})
+    }
+  });
+}
+
+async function getVariable(name) {
+  const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/variables/${name}`);
+  if (!r.ok) return null;
+  const d = await r.json();
+  return d.value;
+}
+
+async function setVariable(name, value) {
+  // Try PATCH first, then POST if not found
+  let r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/variables/${name}`, PAT, {
+    method: 'PATCH',
+    body: JSON.stringify({ name, value })
+  });
+  if (r.status === 404) {
+    r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/variables`, PAT, {
+      method: 'POST',
+      body: JSON.stringify({ name, value })
+    });
+  }
+  return r.ok || r.status === 204;
+}
+
+async function setSecret(name, value) {
+  // Get public key
+  const pkRes = await ghFetch(`/repos/${OWNER}/${REPO}/actions/secrets/public-key`);
+  if (!pkRes.ok) throw new Error('Impossible de récupérer la clé publique GitHub');
+  const { key, key_id } = await pkRes.json();
+
+  // Encrypt with libsodium
+  await sodium.ready;
+  const binKey = sodium.from_base64(key, sodium.base64_variants.ORIGINAL);
+  const binVal = sodium.from_string(value);
+  const encBytes = sodium.crypto_box_seal(binVal, binKey);
+  const encrypted = sodium.to_base64(encBytes, sodium.base64_variants.ORIGINAL);
+
+  const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/secrets/${name}`, PAT, {
+    method: 'PUT',
+    body: JSON.stringify({ encrypted_value: encrypted, key_id })
+  });
+  return r.ok || r.status === 204;
+}
+
+async function triggerWorkflow(workflowFile) {
+  const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/workflows/${workflowFile}/dispatches`, PAT, {
+    method: 'POST',
+    body: JSON.stringify({ ref: 'master' })
+  });
+  return r.ok || r.status === 204;
+}
+
+async function enableWorkflow(workflowFile, enable) {
+  const action = enable ? 'enable' : 'disable';
+  const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/workflows/${workflowFile}/${action}`, PAT, { method: 'PUT' });
+  return r.ok || r.status === 204;
+}
+
+async function getWorkflowState(workflowFile) {
+  const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/workflows/${workflowFile}`);
+  if (!r.ok) return null;
+  const d = await r.json();
+  return d.state; // 'active' or 'disabled_manually'
+}
+
+async function getRecentRuns(workflowFile, perPage = 8) {
+  const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/workflows/${workflowFile}/runs?per_page=${perPage}`);
+  if (!r.ok) return [];
+  const d = await r.json();
+  return d.workflow_runs || [];
+}
+
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+async function loadConfig() {
+  const raw = await getVariable('CONFIG_JSON');
+  if (raw) {
+    try {
+      const cfg = JSON.parse(raw);
+      applyConfig(cfg);
+    } catch(e) {
+      showConfigWarning('CONFIG_JSON contient du JSON invalide. Vérifie dans GitHub Settings.');
+    }
+  } else {
+    showConfigWarning('Aucune configuration trouvée sur GitHub. Remplis le formulaire et sauvegarde.');
+  }
+}
+
+function applyConfig(cfg) {
+  // Locations
+  const locs = Array.isArray(cfg.locations) ? cfg.locations : Object.keys(cfg.locations || {});
+  renderList('locations-list', locs, 'location');
+
+  // Hours
+  renderList('hours-list', cfg.hours || [], 'hour', h => `${h}h00`);
+
+  // Price types
+  const prices = cfg.priceType || [];
+  document.getElementById('chk-plein').checked = prices.includes('Tarif plein');
+  document.getElementById('chk-reduit').checked = prices.includes('Tarif réduit');
+
+  // Court types
+  const courts = cfg.courtType || [];
+  document.getElementById('chk-decouvert').checked = courts.includes('Découvert');
+  document.getElementById('chk-couvert').checked = courts.includes('Couvert');
+
+  // Players
+  const players = cfg.players || [];
+  const area = document.getElementById('players-area');
+  area.innerHTML = '';
+  players.forEach((p, i) => addPlayerRow(p.lastName, p.firstName));
+  if (players.length === 0) addPlayerRow('', '');
+
+  // ntfy
+  if (cfg.ntfy) {
+    document.getElementById('cfg-ntfy-topic').value = cfg.ntfy.topic || '';
+    document.getElementById('cfg-ntfy-domain').value = cfg.ntfy.domain || '';
+  }
+}
+
+function buildConfig() {
+  const locations = getListItems('locations-list');
+  const hours = getListItems('hours-list');
+  const priceType = [];
+  if (document.getElementById('chk-plein').checked) priceType.push('Tarif plein');
+  if (document.getElementById('chk-reduit').checked) priceType.push('Tarif réduit');
+  const courtType = [];
+  if (document.getElementById('chk-decouvert').checked) courtType.push('Découvert');
+  if (document.getElementById('chk-couvert').checked) courtType.push('Couvert');
+
+  const players = [];
+  document.querySelectorAll('#players-area .player-row').forEach(row => {
+    const ln = row.querySelector('.player-lastname').value.trim();
+    const fn = row.querySelector('.player-firstname').value.trim();
+    if (ln || fn) players.push({ lastName: ln, firstName: fn });
+  });
+
+  const ntfyTopic = document.getElementById('cfg-ntfy-topic').value.trim();
+  const ntfyDomain = document.getElementById('cfg-ntfy-domain').value.trim();
+
+  const cfg = { locations, hours, priceType, courtType, players };
+  if (ntfyTopic) cfg.ntfy = { enable: true, topic: ntfyTopic, ...(ntfyDomain ? { domain: ntfyDomain } : {}) };
+
+  return cfg;
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="border-color:rgba(255,255,255,.4);border-top-color:white"></span> Sauvegarde…';
+
+  try {
+    const cfg = buildConfig();
+
+    // Validate
+    if (!cfg.locations.length) throw new Error('Ajoute au moins un terrain.');
+    if (!cfg.hours.length) throw new Error('Ajoute au moins une heure préférée.');
+    if (!cfg.priceType.length) throw new Error('Sélectionne au moins un type de tarif.');
+    if (!cfg.courtType.length) throw new Error('Sélectionne au moins un type de terrain.');
+
+    const email = document.getElementById('cfg-email').value.trim();
+    const password = document.getElementById('cfg-password').value;
+    const ntfyTopic = document.getElementById('cfg-ntfy-topic').value.trim();
+
+    const tasks = [setVariable('CONFIG_JSON', JSON.stringify(cfg, null, 2))];
+    if (email) tasks.push(setSecret('ACCOUNT_EMAIL', email));
+    if (password) tasks.push(setSecret('ACCOUNT_PASSWORD', password));
+    if (ntfyTopic) tasks.push(setSecret('NTFY_TOPIC', ntfyTopic));
+
+    const results = await Promise.all(tasks);
+    if (results.some(r => !r)) throw new Error('Une ou plusieurs mises à jour ont échoué. Vérifie les permissions du token.');
+
+    hideConfigWarning();
+    toast('Configuration sauvegardée avec succès !', 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>💾 Sauvegarder</span>';
+  }
+}
+
+// ═══════════════════════════════════════════
+// BOOKING
+// ═══════════════════════════════════════════
+async function triggerBooking(isDryRun) {
+  const btn = isDryRun ? document.getElementById('dry-btn') : document.getElementById('book-btn');
+  const wf = isDryRun ? 'book-tennis-dry.yml' : 'book-tennis.yml';
+  const label = isDryRun ? 'Test dry-run' : 'Réservation';
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Lancement…`;
+
+  try {
+    const ok = await triggerWorkflow(wf);
+    if (!ok) throw new Error('Impossible de déclencher le workflow.');
+    toast(`${label} lancé ! Consulte l'onglet Historique.`, 'success');
+    setTimeout(() => loadHistory(), 3000);
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = isDryRun ? '🧪 Test (dry-run)' : '🎾 Réserver maintenant';
+  }
+}
+
+async function loadWorkflowStatus() {
+  const el = document.getElementById('workflow-status');
+  const toggle = document.getElementById('schedule-toggle');
+  try {
+    const state = await getWorkflowState('book-tennis.yml');
+    const isActive = state === 'active';
+    toggle.checked = isActive;
+
+    const stateLabel = isActive
+      ? '<span class="badge-status badge-success"><span class="dot dot-green"></span> Activé</span>'
+      : '<span class="badge-status badge-info"><span class="dot dot-gray"></span> Désactivé</span>';
+
+    el.innerHTML = `<div class="toggle-row">
+      <div class="toggle-info">
+        <h3>Workflow "Tennis booking" ${stateLabel}</h3>
+        <p>Planifié : tous les jours à 7h45 (heure Paris), attend 8h00 pour réserver. Se désactive automatiquement après chaque exécution.</p>
+      </div>
+    </div>`;
+  } catch(e) {
+    el.innerHTML = '<div class="alert alert-error"><span class="icon">❌</span>Impossible de charger le statut.</div>';
+  }
+}
+
+async function toggleSchedule(checkbox) {
+  checkbox.disabled = true;
+  try {
+    const ok = await enableWorkflow('book-tennis.yml', checkbox.checked);
+    if (!ok) throw new Error();
+    toast(checkbox.checked ? 'Workflow activé. La réservation sera tentée demain à 8h.' : 'Workflow désactivé.', 'success');
+    await loadWorkflowStatus();
+  } catch(e) {
+    checkbox.checked = !checkbox.checked;
+    toast('Erreur lors du changement de statut du workflow.', 'error');
+  } finally {
+    checkbox.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════
+async function loadHistory() {
+  const el = document.getElementById('history-list');
+  try {
+    const [runs1, runs2] = await Promise.all([
+      getRecentRuns('book-tennis.yml', 5),
+      getRecentRuns('book-tennis-dry.yml', 3)
+    ]);
+    const all = [...runs1, ...runs2].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
+
+    if (!all.length) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">📋</div>Aucune exécution trouvée.</div>';
+      return;
+    }
+
+    el.innerHTML = all.map(run => {
+      const isDry = run.name?.toLowerCase().includes('dry');
+      const date = new Date(run.created_at).toLocaleString('fr-FR');
+      const badge = runBadge(run.conclusion || run.status);
+      return `<div class="run-item">
+        <div class="run-info">
+          <h4>${isDry ? '🧪 Dry-run' : '🎾 Réservation'} ${badge}</h4>
+          <p>${date} &nbsp;·&nbsp; #${run.run_number}</p>
+        </div>
+        <a href="${run.html_url}" target="_blank" class="run-link">Voir les logs →</a>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="alert alert-error"><span class="icon">❌</span>Impossible de charger l\'historique.</div>';
+  }
+}
+
+function runBadge(status) {
+  const map = {
+    success: ['badge-success', '✓ Succès'],
+    failure: ['badge-failure', '✗ Échec'],
+    in_progress: ['badge-running', '⏳ En cours'],
+    queued: ['badge-pending', '⏸ En attente'],
+    cancelled: ['badge-info', '⊘ Annulé'],
+    skipped: ['badge-info', '⊘ Ignoré'],
+  };
+  const [cls, label] = map[status] || ['badge-info', status || 'Inconnu'];
+  return `<span class="badge-status ${cls}">${label}</span>`;
+}
+
+// ═══════════════════════════════════════════
+// LIST HELPERS
+// ═══════════════════════════════════════════
+function renderList(containerId, items, type, labelFn) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  items.forEach((item, i) => {
+    el.appendChild(createListItem(item, type, i + 1, labelFn));
+  });
+}
+
+function createListItem(value, type, num, labelFn) {
+  const div = document.createElement('div');
+  div.className = 'list-item';
+  div.dataset.value = value;
+  div.dataset.type = type;
+  const label = labelFn ? labelFn(value) : value;
+  div.innerHTML = `
+    <span class="handle" title="Glisser pour réordonner">☰</span>
+    <span class="badge">${num}</span>
+    <span class="item-text">${escapeHtml(label)}</span>
+    <button class="remove-btn" onclick="removeListItem(this)" title="Supprimer">✕</button>`;
+  return div;
+}
+
+function addLocation() {
+  const input = document.getElementById('location-add-input');
+  const val = input.value.trim();
+  if (!val) return;
+  const existing = getListItems('locations-list');
+  if (existing.includes(val)) { toast('Ce terrain est déjà dans la liste.', 'error'); return; }
+  const list = document.getElementById('locations-list');
+  list.appendChild(createListItem(val, 'location', list.children.length + 1));
+  rebadge('locations-list');
+  input.value = '';
+}
+
+function addHour() {
+  const sel = document.getElementById('hour-add-select');
+  const val = sel.value;
+  if (!val) return;
+  const existing = getListItems('hours-list');
+  if (existing.includes(val)) { toast('Cette heure est déjà dans la liste.', 'error'); return; }
+  const list = document.getElementById('hours-list');
+  list.appendChild(createListItem(val, 'hour', list.children.length + 1, h => `${h}h00`));
+  rebadge('hours-list');
+  sel.value = '';
+}
+
+function removeListItem(btn) {
+  const item = btn.closest('.list-item');
+  const container = item.parentElement;
+  item.remove();
+  rebadge(container.id);
+}
+
+function getListItems(containerId) {
+  return Array.from(document.getElementById(containerId).querySelectorAll('.list-item')).map(el => el.dataset.value);
+}
+
+function rebadge(containerId) {
+  const items = document.getElementById(containerId).querySelectorAll('.list-item');
+  items.forEach((item, i) => { item.querySelector('.badge').textContent = i + 1; });
+}
+
+document.getElementById('location-add-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') addLocation(); });
+
+// ═══════════════════════════════════════════
+// PLAYERS
+// ═══════════════════════════════════════════
+function addPlayerRow(ln = '', fn = '') {
+  const area = document.getElementById('players-area');
+  if (area.children.length >= 3) { toast('Maximum 3 joueurs additionnels.', 'error'); return; }
+  const row = document.createElement('div');
+  row.className = 'player-row';
+  const num = area.children.length + 1;
+  row.innerHTML = `
+    <span class="player-num">${num}.</span>
+    <input type="text" class="player-lastname" placeholder="Nom" value="${escapeHtml(ln)}">
+    <input type="text" class="player-firstname" placeholder="Prénom" value="${escapeHtml(fn)}">
+    <button class="btn btn-secondary btn-sm" onclick="removePlayer(this)">✕</button>`;
+  area.appendChild(row);
+  updateAddPlayerBtn();
+}
+
+function addPlayer() { addPlayerRow(); }
+
+function removePlayer(btn) {
+  btn.closest('.player-row').remove();
+  renumberPlayers();
+  updateAddPlayerBtn();
+}
+
+function renumberPlayers() {
+  document.querySelectorAll('#players-area .player-num').forEach((el, i) => { el.textContent = `${i + 1}.`; });
+}
+
+function updateAddPlayerBtn() {
+  const count = document.getElementById('players-area').children.length;
+  const btn = document.getElementById('add-player-btn');
+  if (btn) btn.style.display = count >= 3 ? 'none' : '';
+}
+
+// ═══════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const names = ['config', 'booking', 'history'];
+    b.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  if (name === 'booking') loadWorkflowStatus();
+  if (name === 'history') loadHistory();
+}
+
+function toggleCollapsible(header) {
+  const arrow = header.querySelector('.collapsible-arrow');
+  const body = header.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  arrow.classList.toggle('open', !isOpen);
+}
+
+function showConfigWarning(msg) {
+  const el = document.getElementById('config-warning');
+  document.getElementById('config-warning-text').textContent = msg;
+  el.style.display = 'flex';
+}
+function hideConfigWarning() {
+  document.getElementById('config-warning').style.display = 'none';
+}
+function syncCheckboxes() {}
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = ''; }, 3500);
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════
+// DRAG & DROP (simple keyboard-free reorder)
+// ═══════════════════════════════════════════
+let dragSrc = null;
+document.addEventListener('dragstart', e => {
+  const handle = e.target.closest('.handle');
+  if (!handle) return;
+  dragSrc = handle.closest('.list-item');
+  e.dataTransfer.effectAllowed = 'move';
+});
+document.addEventListener('dragover', e => {
+  const item = e.target.closest('.list-item');
+  if (!item || item === dragSrc) return;
+  e.preventDefault();
+  const rect = item.getBoundingClientRect();
+  const after = e.clientY > rect.top + rect.height / 2;
+  item.parentElement.insertBefore(dragSrc, after ? item.nextSibling : item);
+});
+document.addEventListener('dragend', () => {
+  if (dragSrc) {
+    const listId = dragSrc.closest('.list-items')?.id;
+    if (listId) rebadge(listId);
+    dragSrc = null;
+  }
+});
+document.querySelectorAll('.handle').forEach(h => h.setAttribute('draggable', true));
+document.addEventListener('DOMNodeInserted', e => {
+  if (e.target.classList?.contains('list-item')) {
+    const handle = e.target.querySelector?.('.handle');
+    if (handle) handle.setAttribute('draggable', true);
+  }
+});
+</script>
+</body>
+</html>
