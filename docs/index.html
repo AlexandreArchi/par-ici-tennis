@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Par-Ici Tennis 🎾</title>
-  <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/modules/libsodium-wrappers.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/blakejs@1.2.1/blake2b.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -638,12 +639,19 @@ async function setSecret(name, value) {
   if (!pkRes.ok) throw new Error('Impossible de récupérer la clé publique GitHub');
   const { key, key_id } = await pkRes.json();
 
-  // Encrypt with libsodium
-  await _sodium.ready;
-  const binKey = _sodium.from_base64(key, _sodium.base64_variants.ORIGINAL);
-  const binVal = _sodium.from_string(value);
-  const encBytes = _sodium.crypto_box_seal(binVal, binKey);
-  const encrypted = _sodium.to_base64(encBytes, _sodium.base64_variants.ORIGINAL);
+  // Sealed box encryption using tweetnacl + blakejs (same as libsodium crypto_box_seal)
+  const recipientPk = Uint8Array.from(atob(key), c => c.charCodeAt(0));
+  const msg = new TextEncoder().encode(value);
+  const ek = nacl.box.keyPair();
+  const nonceInput = new Uint8Array(ek.publicKey.length + recipientPk.length);
+  nonceInput.set(ek.publicKey);
+  nonceInput.set(recipientPk, ek.publicKey.length);
+  const nonce = blakejs.blake2b(nonceInput, null, 24);
+  const ciphertext = nacl.box(msg, nonce, recipientPk, ek.secretKey);
+  const sealed = new Uint8Array(ek.publicKey.length + ciphertext.length);
+  sealed.set(ek.publicKey);
+  sealed.set(ciphertext, ek.publicKey.length);
+  const encrypted = btoa(String.fromCharCode(...sealed));
 
   const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/secrets/${name}`, PAT, {
     method: 'PUT',
