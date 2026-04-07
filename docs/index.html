@@ -543,38 +543,36 @@
 
         <div id="booking-alert" style="margin-bottom:16px"></div>
 
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <h3>Réservation automatique à 8h</h3>
-            <p>Active le workflow GitHub Actions pour réserver automatiquement le lendemain à 8h00 (Paris). Se désactive automatiquement après exécution.</p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="schedule-toggle" onchange="toggleSchedule(this)">
-            <span class="toggle-slider"></span>
-          </label>
+        <div class="section-title">Planifier une réservation</div>
+        <div class="alert alert-info" style="margin-bottom:16px">
+          <span class="icon">ℹ️</span>
+          <span>Les créneaux ouvrent <strong>6 jours avant</strong> à 8h. Choisis ta date de jeu, le workflow se lancera automatiquement au bon moment.</span>
         </div>
-
-        <div style="margin-top:24px">
-          <div class="section-title">Lancer manuellement</div>
-          <div class="alert alert-info" style="margin-bottom:16px">
-            <span class="icon">ℹ️</span>
-            <span>Une réservation sera tentée pour dans <strong>6 jours</strong> (ou la date dans ta config). Assure-toi que ta configuration est sauvegardée.</span>
-          </div>
-          <div class="btn-group">
-            <button class="btn btn-primary" id="book-btn" onclick="triggerBooking(false)">
-              🎾 Réserver maintenant
-            </button>
-            <button class="btn btn-secondary" id="dry-btn" onclick="triggerBooking(true)">
-              🧪 Test (dry-run)
-            </button>
+        <div class="form-group">
+          <label>Date de jeu souhaitée</label>
+          <input type="date" id="play-date-input" oninput="updateSchedulePreview()" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:0.95rem">
+        </div>
+        <div id="schedule-preview" style="display:none;margin-bottom:16px">
+          <div class="alert alert-success">
+            <span class="icon">📅</span>
+            <span id="schedule-preview-text"></span>
           </div>
         </div>
+        <div class="btn-group" style="margin-bottom:24px">
+          <button class="btn btn-primary" id="schedule-btn" onclick="scheduleForDate()" disabled>
+            📅 Planifier
+          </button>
+          <button class="btn btn-secondary" id="dry-btn" onclick="triggerBooking(true)">
+            🧪 Test (dry-run)
+          </button>
+          <button class="btn btn-secondary" id="book-btn" onclick="triggerBooking(false)">
+            ▶ Lancer maintenant
+          </button>
+        </div>
 
-        <div style="margin-top:24px">
-          <div class="section-title">Statut du workflow</div>
-          <div id="workflow-status">
-            <div class="empty-state"><div class="icon">⏳</div>Chargement…</div>
-          </div>
+        <div class="section-title">Statut du workflow</div>
+        <div id="workflow-status">
+          <div class="empty-state"><div class="icon">⏳</div>Chargement…</div>
         </div>
       </div>
 
@@ -666,6 +664,9 @@ async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('main-app').style.display = 'block';
   document.getElementById('header-user').innerHTML = `<span class="dot dot-green"></span> &nbsp;<strong>${OWNER}/${REPO}</strong>`;
+  // Date picker: min = today + 7 (need at least 1 day before the J-6 trigger)
+  const minDate = new Date(); minDate.setDate(minDate.getDate() + 7);
+  document.getElementById('play-date-input').min = minDate.toISOString().split('T')[0];
   await Promise.all([loadConfig(), loadWorkflowStatus(), loadHistory()]);
 }
 
@@ -942,6 +943,69 @@ async function toggleSchedule(checkbox) {
     toast('Erreur lors du changement de statut du workflow.', 'error');
   } finally {
     checkbox.disabled = false;
+  }
+}
+
+function updateSchedulePreview() {
+  const val = document.getElementById('play-date-input').value;
+  const btn = document.getElementById('schedule-btn');
+  const preview = document.getElementById('schedule-preview');
+  if (!val) { preview.style.display = 'none'; btn.disabled = true; return; }
+  const playDate = new Date(val + 'T12:00:00');
+  const runDate = new Date(playDate); runDate.setDate(runDate.getDate() - 6);
+  const fmt = d => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('schedule-preview-text').innerHTML =
+    `Le workflow se lancera le <strong>${fmt(runDate)}</strong> à 8h00 pour réserver le <strong>${fmt(playDate)}</strong>.`;
+  preview.style.display = 'flex';
+  btn.disabled = false;
+}
+
+async function scheduleForDate() {
+  const val = document.getElementById('play-date-input').value;
+  if (!val) return;
+  const btn = document.getElementById('schedule-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Planification…';
+
+  try {
+    const playDate = new Date(val + 'T12:00:00');
+    const runDate = new Date(playDate); runDate.setDate(runDate.getDate() - 6);
+    const day = runDate.getDate();
+    const month = runDate.getMonth() + 1;
+    const newCron = `45 7 ${day} ${month} *`;
+
+    // Read current workflow file
+    const r = await ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/book-tennis.yml`);
+    if (!r.ok) throw new Error('Impossible de lire le workflow');
+    const { content, sha } = await r.json();
+    const decoded = atob(content.replace(/\n/g, ''));
+
+    // Replace cron expression
+    const updated = decoded.replace(/cron:\s*'[^']*'/, `cron: '${newCron}'`);
+    if (updated === decoded) throw new Error('Expression cron introuvable dans le workflow');
+
+    // Commit updated file
+    const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const commitR = await ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/book-tennis.yml`, PAT, {
+      method: 'PUT',
+      body: JSON.stringify({
+        message: `chore: schedule booking for ${val}`,
+        content: btoa(unescape(encodeURIComponent(updated))),
+        sha
+      })
+    });
+    if (!commitR.ok) throw new Error('Impossible de mettre à jour le workflow');
+
+    // Enable the workflow
+    await enableWorkflow('book-tennis.yml', true);
+
+    toast(`✅ Planifié ! Le workflow se lancera le ${fmt(runDate)} à 8h.`, 'success');
+    await loadWorkflowStatus();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '📅 Planifier';
   }
 }
 
