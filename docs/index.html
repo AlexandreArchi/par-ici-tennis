@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
   <script>
   // Inline BLAKE2b (pure JS, no CDN needed)
-  const blakejs = (() => {
+  var blakejs = (() => {
     const IV = [
       0x6a09e667f3bcc908n, 0xbb67ae8584caa73bn,
       0x3c6ef372fe94f82bn, 0xa54ff53a5f1d36f1n,
