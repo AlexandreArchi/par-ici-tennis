@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Par-Ici Tennis 🎾</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tennis 🎾">
+  <meta name="theme-color" content="#1b5e20">
   <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
   <script>
   // Inline BLAKE2b (pure JS, no CDN needed)
@@ -911,25 +917,65 @@ async function triggerBooking(isDryRun) {
 async function loadWorkflowStatus() {
   const el = document.getElementById('workflow-status');
   try {
-    const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/workflows/book-tennis.yml`);
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.message || `HTTP ${r.status}`);
+    const [wfRes, fileRes] = await Promise.all([
+      ghFetch(`/repos/${OWNER}/${REPO}/actions/workflows/book-tennis.yml`),
+      ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/book-tennis.yml`)
+    ]);
+    const data = await wfRes.json();
+    if (!wfRes.ok) throw new Error(data.message || `HTTP ${wfRes.status}`);
     const isActive = data.state === 'active';
+
+    // Parse cron from workflow file to show scheduled date
+    let scheduleInfo = 'Aucune planification active.';
+    let showCancel = false;
+    if (fileRes.ok) {
+      const fileData = await fileRes.json();
+      const content = atob(fileData.content.replace(/\n/g, ''));
+      const cronMatch = content.match(/cron:\s*'(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+\*'/);
+      if (cronMatch) {
+        const [, , , day, month] = cronMatch;
+        const runDate = new Date(new Date().getFullYear(), parseInt(month) - 1, parseInt(day));
+        const playDate = new Date(runDate); playDate.setDate(playDate.getDate() + 6);
+        const fmt = d => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        scheduleInfo = `Planifié : lancement le <strong>${fmt(runDate)}</strong> à 8h → jouer le <strong>${fmt(playDate)}</strong>.`;
+        showCancel = true;
+      }
+    }
 
     const stateLabel = isActive
       ? '<span class="badge-status badge-success"><span class="dot dot-green"></span> Activé</span>'
       : '<span class="badge-status badge-info"><span class="dot dot-gray"></span> Désactivé</span>';
 
-    // Parse current cron to show next scheduled date
-    const cronMatch = data.path ? '' : '';
     el.innerHTML = `<div class="toggle-row">
       <div class="toggle-info">
         <h3>Workflow "Tennis booking" ${stateLabel}</h3>
-        <p>Se désactive automatiquement après chaque exécution.</p>
+        <p>${scheduleInfo}</p>
       </div>
+      ${showCancel && isActive ? `<button class="btn btn-danger btn-sm" onclick="cancelSchedule()">✕ Annuler</button>` : ''}
     </div>`;
   } catch(e) {
     el.innerHTML = `<div class="alert alert-warning"><span class="icon">⚠️</span>Statut indisponible : <strong>${e.message}</strong>. Vérifie que ton token a le scope <code>workflow</code>.</div>`;
+  }
+}
+
+async function cancelSchedule() {
+  if (!confirm('Annuler la planification et désactiver le workflow ?')) return;
+  try {
+    // Reset cron to default wildcard
+    const r = await ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/book-tennis.yml`);
+    if (!r.ok) throw new Error('Impossible de lire le workflow');
+    const { content, sha } = await r.json();
+    const decoded = atob(content.replace(/\n/g, ''));
+    const reset = decoded.replace(/cron:\s*'[^']*'/, `cron: '45 7 * * *'`);
+    await ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/book-tennis.yml`, PAT, {
+      method: 'PUT',
+      body: JSON.stringify({ message: 'chore: reset booking schedule', content: btoa(unescape(encodeURIComponent(reset))), sha })
+    });
+    await enableWorkflow('book-tennis.yml', false);
+    toast('Planification annulée.', 'success');
+    await loadWorkflowStatus();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
   }
 }
 

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <rect width="180" height="180" rx="40" fill="#1b5e20"/>
+  <!-- Tennis ball -->
+  <circle cx="90" cy="90" r="52" fill="#c8e85a"/>
+  <!-- Ball seam curves -->
+  <path d="M 90 38 C 65 38 45 62 45 90 C 45 118 65 142 90 142" fill="none" stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+  <path d="M 90 38 C 115 38 135 62 135 90 C 135 118 115 142 90 142" fill="none" stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+</svg>

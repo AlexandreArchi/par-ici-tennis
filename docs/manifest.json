@@ -1,0 +1,12 @@
+{
+  "name": "Par-Ici Tennis",
+  "short_name": "Tennis 🎾",
+  "description": "Réservation automatique de terrains de tennis à Paris",
+  "start_url": "/par-ici-tennis/",
+  "display": "standalone",
+  "background_color": "#1b5e20",
+  "theme_color": "#1b5e20",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
