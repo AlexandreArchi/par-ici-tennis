@@ -766,6 +766,12 @@ async function getRecentRuns(workflowFile, perPage = 8) {
 // CONFIG
 // ═══════════════════════════════════════════
 async function loadConfig() {
+  // Pre-fill credentials from localStorage
+  const savedEmail = localStorage.getItem('tennis_email');
+  const savedPassword = localStorage.getItem('tennis_password');
+  if (savedEmail) document.getElementById('cfg-email').value = savedEmail;
+  if (savedPassword) document.getElementById('cfg-password').value = savedPassword;
+
   const raw = await getVariable('CONFIG_JSON');
   if (raw) {
     try {
@@ -854,6 +860,10 @@ async function saveConfig() {
     const email = document.getElementById('cfg-email').value.trim();
     const password = document.getElementById('cfg-password').value;
     const ntfyTopic = document.getElementById('cfg-ntfy-topic').value.trim();
+
+    // Persist credentials locally so they pre-fill on next visit
+    if (email) localStorage.setItem('tennis_email', email);
+    if (password) localStorage.setItem('tennis_password', password);
 
     const tasks = [setVariable('CONFIG_JSON', JSON.stringify(cfg, null, 2))];
     if (email) tasks.push(setSecret('ACCOUNT_EMAIL', email));
