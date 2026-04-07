@@ -639,11 +639,11 @@ async function setSecret(name, value) {
   const { key, key_id } = await pkRes.json();
 
   // Encrypt with libsodium
-  await sodium.ready;
-  const binKey = sodium.from_base64(key, sodium.base64_variants.ORIGINAL);
-  const binVal = sodium.from_string(value);
-  const encBytes = sodium.crypto_box_seal(binVal, binKey);
-  const encrypted = sodium.to_base64(encBytes, sodium.base64_variants.ORIGINAL);
+  await _sodium.ready;
+  const binKey = _sodium.from_base64(key, _sodium.base64_variants.ORIGINAL);
+  const binVal = _sodium.from_string(value);
+  const encBytes = _sodium.crypto_box_seal(binVal, binKey);
+  const encrypted = _sodium.to_base64(encBytes, _sodium.base64_variants.ORIGINAL);
 
   const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/secrets/${name}`, PAT, {
     method: 'PUT',
