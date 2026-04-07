@@ -910,24 +910,26 @@ async function triggerBooking(isDryRun) {
 
 async function loadWorkflowStatus() {
   const el = document.getElementById('workflow-status');
-  const toggle = document.getElementById('schedule-toggle');
   try {
-    const state = await getWorkflowState('book-tennis.yml');
-    const isActive = state === 'active';
-    toggle.checked = isActive;
+    const r = await ghFetch(`/repos/${OWNER}/${REPO}/actions/workflows/book-tennis.yml`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.message || `HTTP ${r.status}`);
+    const isActive = data.state === 'active';
 
     const stateLabel = isActive
       ? '<span class="badge-status badge-success"><span class="dot dot-green"></span> Activé</span>'
       : '<span class="badge-status badge-info"><span class="dot dot-gray"></span> Désactivé</span>';
 
+    // Parse current cron to show next scheduled date
+    const cronMatch = data.path ? '' : '';
     el.innerHTML = `<div class="toggle-row">
       <div class="toggle-info">
         <h3>Workflow "Tennis booking" ${stateLabel}</h3>
-        <p>Planifié : tous les jours à 7h45 (heure Paris), attend 8h00 pour réserver. Se désactive automatiquement après chaque exécution.</p>
+        <p>Se désactive automatiquement après chaque exécution.</p>
       </div>
     </div>`;
   } catch(e) {
-    el.innerHTML = '<div class="alert alert-error"><span class="icon">❌</span>Impossible de charger le statut.</div>';
+    el.innerHTML = `<div class="alert alert-warning"><span class="icon">⚠️</span>Statut indisponible : <strong>${e.message}</strong>. Vérifie que ton token a le scope <code>workflow</code>.</div>`;
   }
 }
 
